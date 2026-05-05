@@ -1,7 +1,6 @@
 {
-  "name": "max-black-java-2026",
-  "version": "2.0.0",
-  "description": "Minecraft Java Edition Bot for 2026",
+  "name": "java-bot-2026",
+  "version": "1.0.0",
   "main": "index.js",
   "dependencies": {
     "telegraf": "^4.16.3",
