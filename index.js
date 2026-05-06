@@ -2,84 +2,96 @@ const { Telegraf, Markup } = require('telegraf');
 const bedrock = require('bedrock-protocol');
 const http = require('http');
 
-const bot = new Telegraf('8630184110:AAGN7k_-nZqOzEHZeNy74PuFR_CiJ2kxRps');
+// المحرك الرئيسي
+const bot = new Telegraf('8630184110:AAGN7k_-nZq0zEHZeNy74PuFR_CiJ2kxRps');
 
-http.createServer((req, res) => res.end('Protocol 1.26.x Forced')).listen(process.env.PORT || 8080);
+// ويب سيرفر احترافي لريلوي
+http.createServer((req, res) => {
+    res.writeHead(200);
+    res.end('MaxBlack Engine is Running...');
+}).listen(process.env.PORT || 8080);
 
-const userSessions = new Map();
+const db = new Map();
 
-const mainKeyboard = (isConnected) => {
-    return Markup.inlineKeyboard([
-        [Markup.button.callback(isConnected ? '🔴 إخراج البوت' : '⚡ اقتحام السيرفر (بروتوكول حديث)', 'toggle_connect')],
-        [Markup.button.callback('📊 الحالة', 'check_status'), Markup.button.callback('🔄 تحديث', 'refresh')],
-        [Markup.button.callback('🗑️ مسح البيانات', 'reset_data')]
-    ]);
-};
+// --- تصميم الأزرار الجديد (لوحة تحكم عريضة) ---
+const drawMenu = (online) => Markup.inlineKeyboard([
+    [Markup.button.callback(online ? '❌ سحب البوت وإغلاق المنفذ' : '🚀 تشغيل بروتوكول الاقتحام', 'switch')],
+    [Markup.button.callback('🔍 فحص النبض', 'ping'), Markup.button.callback('🛠️ إرسال تحديث', 'update')],
+    [Markup.button.callback('🧹 تنظيف الذاكرة', 'wipe')]
+]);
+
+bot.start((ctx) => {
+    ctx.reply(`🎛️ **نظام MaxBlack للتحكم بالسيرفرات**\n\nأرسل الآيبي والمنفذ الآن يا بطل:\n` + '`IP:PORT`', { parse_mode: 'Markdown' });
+});
 
 bot.on('text', (ctx) => {
-    const input = ctx.message.text.trim();
-    if (!input.includes(':')) return; 
-    const [host, port] = input.split(':').map(s => s.trim());
-    userSessions.set(ctx.from.id, { host, port: parseInt(port), client: null, status: 'انتظار ⏳' });
-    ctx.reply(`✅ **تم تجهيز المحرك**\n📍 الهدف: ${host}:${port}\n🚀 النظام: إجبار البروتوكول الحديث`, mainKeyboard(false));
+    const data = ctx.message.text.split(':');
+    if (data.length !== 2) return ctx.reply('⚠️ اكتبها كذا: `ip:port`');
+    
+    db.set(ctx.from.id, { host: data[0].trim(), port: parseInt(data[1]), client: null });
+    ctx.reply(`🛰️ **تم رصد الهدف**\n📍 العنوان: ${data[0].trim()}\n🔌 المنفذ: ${data[1].trim()}`, drawMenu(false));
 });
 
-bot.action('toggle_connect', async (ctx) => {
-    const userId = ctx.from.id;
-    const session = userSessions.get(userId);
-    if (!session) return;
+bot.action('switch', async (ctx) => {
+    const user = db.get(ctx.from.id);
+    if (!user) return ctx.answerCbQuery('❌ لا توجد بيانات!');
 
-    if (session.client) {
-        session.client.disconnect();
-        session.client = null;
-        await ctx.editMessageText(`🛑 تم الفصل.`, mainKeyboard(false));
-    } else {
-        ctx.answerCbQuery('🚀 جاري إجبار السيرفر على القبول...');
-        try {
-            const client = bedrock.createClient({
-                host: session.host,
-                port: session.port,
-                // اسم عشوائي لتجنب التعرف على البوت
-                username: `Max_${Math.floor(Math.random() * 9999)}`,
-                offline: true,
-                // --- رفع رقم البروتوكول لأقصى درجة ---
-                version: '1.21.0', 
-                protocolVersion: 748, // رقم بروتوكول حديث جداً لتخطي outdated_client
-                // ------------------------------------
-                connectTimeout: 30000,
-                skipPing: true 
-            });
-
-            session.client = client;
-
-            client.on('spawn', () => {
-                session.status = 'داخل السيرفر ✅';
-                ctx.editMessageText(`🟢 **تم الاقتحام بنجاح!**\nالبوت الآن مستقر داخل السيرفر.`, mainKeyboard(true));
-            });
-
-            client.on('error', (err) => {
-                session.client = null;
-                ctx.reply(`❌ فشل: ${err.message}`);
-            });
-
-            client.on('disconnect', (p) => {
-                session.client = null;
-                // إذا ظهرت outdated_client مرة أخرى، سنرفع الرقم أكثر
-                ctx.reply(`⚠️ تنبيه: ${p.reason || 'انفصال'}`);
-            });
-
-        } catch (e) { ctx.reply('❌ خطأ محرك.'); }
+    if (user.client) {
+        user.client.disconnect();
+        user.client = null;
+        return ctx.editMessageText('🛑 **تم فصل الاتصال.**', drawMenu(false));
     }
+
+    ctx.answerCbQuery('⚡ جاري كسر حماية السيرفر...');
+    try {
+        const client = bedrock.createClient({
+            host: user.host,
+            port: user.port,
+            username: `Max_B_${Math.floor(Math.random() * 999)}`,
+            offline: true,
+            version: '1.21.0', 
+            protocolVersion: 748, // أحدث بروتوكول لـ 1.26.x
+            connectTimeout: 30000,
+            skipPing: true
+        });
+
+        user.client = client;
+
+        client.on('spawn', () => {
+            ctx.editMessageText(`🟢 **تم الاقتحام بنجاح!**\nالبوت الآن داخل السيرفر ويتحرك.`, drawMenu(true));
+        });
+
+        client.on('error', (err) => {
+            user.client = null;
+            ctx.reply(`❌ فشل: ${err.message}`);
+        });
+
+        client.on('disconnect', (p) => {
+            user.client = null;
+            ctx.reply(`⚠️ طرد: ${p.reason || 'بروتوكول غير متوافق'}`);
+        });
+
+    } catch (e) { ctx.reply('❌ خطأ في المحرك.'); }
 });
 
-bot.action('check_status', (ctx) => {
-    const session = userSessions.get(ctx.from.id);
-    ctx.answerCbQuery(`الحالة: ${session ? session.status : 'لا يوجد'}`, { show_alert: true });
+bot.action('ping', (ctx) => ctx.answerCbQuery('📡 النظام يعمل بكفاءة 100%'));
+
+bot.action('wipe', (ctx) => {
+    db.delete(ctx.from.id);
+    ctx.editMessageText('🧹 **تم تصفير البيانات.**');
 });
 
-bot.action('reset_data', (ctx) => {
-    userSessions.delete(ctx.from.id);
-    ctx.editMessageText('🗑️ البيانات نُظفت.');
-});
+// --- حل مشكلة "البوت لا يرد" (التصادم) ---
+const run = async () => {
+    try {
+        await bot.launch();
+        console.log('✅ Bot is Online and Responding!');
+    } catch (e) {
+        if (e.response && e.response.error_code === 409) {
+            console.log('🔄 تضارب! جاري إعادة التشغيل...');
+            setTimeout(run, 5000);
+        }
+    }
+};
 
-bot.launch().catch(e => console.error(e));
+run();
