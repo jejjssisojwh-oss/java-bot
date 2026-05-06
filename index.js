@@ -4,7 +4,7 @@ const http = require('http');
 const fs = require('fs');
 
 // ضع توكن البوت الخاص بك هنا يا بطل
-const bot = new Telegraf('8630184110:AAGN7k_-nZq0zEHZeNy74PuFR_CiJ2kxRps');
+const bot = new Telegraf('8630184110:AAGN7k_-nZqOzEHZeNy74PuFR_CiJ2kxRps');
 
 // --- نظام البيانات ---
 let servers = {};
