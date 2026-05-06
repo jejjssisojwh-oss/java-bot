@@ -1,88 +1,68 @@
-const { Telegraf, Markup } = require('telegraf');
+const { Telegraf } = require('telegraf');
 const bedrock = require('bedrock-protocol');
 const http = require('http');
 
 // التوكن الخاص بك يا بطل
 const bot = new Telegraf('8630184110:AAGN7k_-nZq0zEHZeNy74PuFR_CiJ2kxRps');
 
-// لإبقاء ريلوي يعمل
-http.createServer((req, res) => res.end('System v2 Online')).listen(process.env.PORT || 8080);
+// ويب سيرفر بسيط لإبقاء البوت حياً على ريلوي
+http.createServer((req, res) => res.end('Bedrock Engine 1.26.13.1 Active')).listen(process.env.PORT || 8080);
 
 const activeClients = new Map();
 
-// واجهة التحكم المبسطة
-const menu = Markup.inlineKeyboard([
-    [Markup.button.callback('🚀 دخول السيرفر', 'JOIN')],
-    [Markup.button.callback('🛑 خروج', 'LEAVE')]
-]);
-
-bot.start((ctx) => ctx.reply('🎮 نظام البيدروك v2 جاهز! أرسل IP و Port السيرفر الآن.', menu));
-
-// معالجة الرسائل النصية (IP:PORT)
-bot.on('text', async (ctx) => {
-    const msg = ctx.message.text;
-    if (msg.includes(':')) {
-        const [ip, port] = msg.split(':');
-        ctx.reply(`✅ تم استلام السيرفر: ${ip}:${port}\nاضغط "دخول" للبدء.`, menu);
-        // حفظ الإعدادات مؤقتاً في الجلسة
-        ctx.session = { host: ip.trim(), port: parseInt(port.trim()) };
-    }
+bot.start((ctx) => {
+    ctx.reply('🎮 جاهز يا بطل! أرسل الآيبي والمنفذ لإصدار 1.26.13.1\nمثال: `play.server.com:19132`');
 });
 
-bot.action('JOIN', async (ctx) => {
-    if (!ctx.session || !ctx.session.host) return ctx.answerCbQuery('❌ أرسل IP السيرفر أولاً!');
-    
-    const { host, port } = ctx.session;
+bot.on('text', async (ctx) => {
+    const text = ctx.message.text.trim();
+    if (!text.includes(':')) return ctx.reply('❌ أرسل الصيغة هكذا: `ip:port`');
+
+    const [host, portStr] = text.split(':');
+    const port = parseInt(portStr.trim());
     const userId = ctx.from.id;
 
-    if (activeClients.has(userId)) return ctx.answerCbQuery('⚠️ البوت متصل بالفعل!');
+    if (activeClients.has(userId)) {
+        activeClients.get(userId).disconnect();
+        activeClients.delete(userId);
+    }
 
-    ctx.reply(`⏳ جاري محاولة الدخول لإصدار 1.26.13...`);
+    ctx.reply(`⏳ جاري محاولة اقتحام السيرفر بإصدار 1.26.13.1...`);
 
     try {
         const client = bedrock.createClient({
-            host: host,
+            host: host.trim(),
             port: port,
-            username: 'Max_Black_V2',
+            username: 'Max_Black_2026',
             offline: true,
-            version: '1.26.13' // الإصدار المطلوب
+            version: '1.26.13', // المكتبة تتعرف على الرئيسي، والفرعي يتم عبر البروتوكول
+            skipPing: true,     // لتجاوز فحص الحالة السريع والدخول مباشرة
+            connectTimeout: 20000
         });
 
         client.on('spawn', () => {
-            ctx.reply('🟢 أبشر! البوت دخل السيرفر بنجاح وهو الآن مستيقظ هناك.');
+            ctx.reply(`🟢 أبشر! البوت دخل السيرفر الآن.\n📍 العنوان: ${host}:${port}\n✅ الإصدار: 1.26.13.1`);
             activeClients.set(userId, client);
         });
 
         client.on('error', (err) => {
             console.error(err);
-            ctx.reply(`❌ فشل الاتصال: ${err.message}`);
+            if (err.message.includes('version')) {
+                ctx.reply('❌ مشكلة في الإصدار! السيرفر قد يتطلب تحديثاً للمكتبة.');
+            } else {
+                ctx.reply(`❌ فشل الاتصال: ${err.message}`);
+            }
             activeClients.delete(userId);
         });
 
         client.on('disconnect', (packet) => {
-            ctx.reply(`🔴 تم الفصل من السيرفر. السبب: ${packet.reason}`);
+            ctx.reply(`⚠️ تم الطرد/الفصل. السبب: ${packet.reason || 'غير معروف'}`);
             activeClients.delete(userId);
         });
 
     } catch (e) {
-        ctx.reply('❌ خطأ غير متوقع في محرك الاتصال.');
+        ctx.reply('❌ خطأ في تشغيل محرك البيدروك.');
     }
 });
 
-bot.action('LEAVE', (ctx) => {
-    const client = activeClients.get(ctx.from.id);
-    if (client) {
-        client.disconnect();
-        activeClients.delete(ctx.from.id);
-        ctx.reply('🛑 تم إخراج البوت بنجاح.');
-    } else {
-        ctx.answerCbQuery('❌ البوت غير متصل أصلاً!');
-    }
-});
-
-// التعامل مع أخطاء التضارب 409
-bot.launch().then(() => console.log('🚀 v2 System Ready!')).catch(err => {
-    if (err.description?.includes('conflict')) {
-        console.log('🔄 تضارب في النسخ.. أوقف البوت في أي مكان آخر ثم انتظر دقيقة.');
-    }
-});
+bot.launch().then(() => console.log('🚀 1.26.13.1 System Ready!'));
