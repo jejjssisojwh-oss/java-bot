@@ -1,12 +1,15 @@
 {
-  "name": "max-black-ultra-2026",
-  "version": "3.0.0",
-  "description": "Advanced Minecraft Bedrock Controller",
+  "name": "max-black-titan-2026",
+  "version": "4.0.0",
   "main": "index.js",
   "dependencies": {
     "telegraf": "^4.16.3",
     "bedrock-protocol": "latest",
-    "http": "latest"
+    "http": "latest",
+    "events": "latest"
+  },
+  "scripts": {
+    "start": "node index.js"
   },
   "engines": {
     "node": ">=18.0.0"
