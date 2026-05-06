@@ -1,114 +1,115 @@
 const { Telegraf, Markup } = require('telegraf');
 const bedrock = require('bedrock-protocol');
 const http = require('http');
+const EventEmitter = require('events');
 
-/**
- * كلاس المحرك: المسؤول عن الاتصال الفعلي بسيرفرات البيدروك
- */
-class BedrockEngine {
-    constructor() {
-        this.sessions = new Map();
-    }
-
-    async createConnection(userId, host, port, ctx) {
-        // تنظيف البيانات لضمان عدم وجود أخطاء في الآيبي
-        const cleanHost = host.trim();
-        const cleanPort = parseInt(port);
-
-        if (this.sessions.has(userId)) {
-            this.destroyConnection(userId);
-        }
-
-        const client = bedrock.createClient({
-            host: cleanHost,
-            port: cleanPort,
-            username: `MaxBlack_${Math.floor(Math.random() * 9000)}`,
-            offline: true,
-            version: '1.20.10', // الإصدار الأكثر استقراراً للتوافق
-            connectTimeout: 30000
-        });
-
-        this.sessions.set(userId, client);
-        this.setupEvents(client, userId, ctx, cleanHost, cleanPort);
-    }
-
-    setupEvents(client, userId, ctx, host, port) {
-        client.on('spawn', () => {
-            ctx.reply(`✅ تم اختراق حاجز السيرفر بنجاح!\n🌐 العنوان: ${host}:${port}\n🤖 البوت متواجد الآن.`);
-        });
-
-        client.on('error', (err) => {
-            ctx.reply(`❌ خطأ في المحرك: ${err.message}`);
-            this.sessions.delete(userId);
-        });
-
-        client.on('disconnect', (packet) => {
-            ctx.reply(`⚠️ تم الطرد من السيرفر. السبب: ${packet.reason || 'غير معروف'}`);
-            this.sessions.delete(userId);
-        });
-    }
-
-    destroyConnection(userId) {
-        if (this.sessions.has(userId)) {
-            try {
-                this.sessions.get(userId).disconnect();
-            } catch (e) {}
-            this.sessions.delete(userId);
-        }
-    }
-}
-
-// تشغيل المحرك
-const engine = new BedrockEngine();
-
-/**
- * إعدادات بوت تليجرام
- */
+// --- إعدادات المحرك المركزي ---
 const bot = new Telegraf('8630184110:AAGN7k_-nZq0zEHZeNy74PuFR_CiJ2kxRps');
+const manager = new EventEmitter();
+const sessions = new Map();
 
-// ويب سيرفر لإبقاء الاستضافة (Railway) تعمل
-http.createServer((req, res) => res.end('MAX BLACK ULTRA ACTIVE')).listen(process.env.PORT || 8080);
+// إبقاء الاستضافة حية
+http.createServer((q, r) => r.end('TITAN SYSTEM ONLINE')).listen(process.env.PORT || 8080);
 
+// --- وظائف مساعدة ---
+const getKeyboard = (status) => Markup.inlineKeyboard([
+    [Markup.button.callback(status ? '🔴 إخراج البوت فوراً' : '🟢 تشغيل محرك الدخول', 'toggle_bot')],
+    [Markup.button.callback('🔍 فحص حالة السيرفر', 'check_status')],
+    [Markup.button.callback('🛠️ إعدادات متقدمة', 'settings')]
+]);
+
+// --- معالجة الأوامر ---
 bot.start((ctx) => {
-    ctx.reply('🛡️ أهلاً بك في نظام MaxBlack Ultra 2026\n\nأرسل بيانات السيرفر الآن بصيغة:\n`IP:PORT`');
+    ctx.reply(`🛡️ نظام تيتان 2026 للبيدروك جاهز..
+    
+يا بطل، أرسل البيانات الآن بصيغة:
+` + '`HOST:PORT`' + `
+مثال: ` + '`play.net:19132`', { parse_mode: 'Markdown' });
 });
 
-bot.on('text', async (ctx) => {
+bot.on('text', (ctx) => {
     const input = ctx.message.text.trim();
-    
-    if (!input.includes(':')) {
-        return ctx.reply('⚠️ الصيغة المطلوبة هي IP:PORT يا بطل.');
-    }
+    if (!input.includes(':')) return ctx.reply('⚠️ الصيغة المطلوبة: IP:PORT');
 
     const [host, port] = input.split(':');
-    
-    if (!host || !port || isNaN(parseInt(port))) {
-        return ctx.reply('⚠️ تأكد من كتابة الآيبي والبورت بشكل صحيح وبدون مسافات.');
+    const userId = ctx.from.id;
+
+    sessions.set(userId, { 
+        host: host.trim(), 
+        port: parseInt(port), 
+        client: null,
+        active: false 
+    });
+
+    ctx.reply(`✅ تم تسجيل السيرفر: ${host}:${port}\nاختر الإجراء المطلوب من القائمة:`, getKeyboard(false));
+});
+
+// --- معالجة الأزرار التفاعلية ---
+bot.action('toggle_bot', async (ctx) => {
+    const userId = ctx.from.id;
+    const session = sessions.get(userId);
+
+    if (!session) return ctx.answerCbQuery('❌ أرسل البيانات أولاً!');
+
+    if (session.active) {
+        // إخراج البوت
+        if (session.client) session.client.disconnect();
+        session.active = false;
+        session.client = null;
+        ctx.editMessageText('🛑 تم فصل الاتصال وإخراج البوت.', getKeyboard(false));
+    } else {
+        // إدخال البوت
+        ctx.answerCbQuery('⏳ جاري المحاولة...');
+        try {
+            const client = bedrock.createClient({
+                host: session.host,
+                port: session.port,
+                username: `MaxTitan_${userId.toString().slice(0,4)}`,
+                offline: true,
+                version: '1.20.10',
+                connectTimeout: 30000
+            });
+
+            session.client = client;
+            
+            client.on('spawn', () => {
+                session.active = true;
+                ctx.editMessageText(`🟢 مبروك يا بطل! البوت الآن داخل السيرفر.\n📍 ${session.host}:${session.port}`, getKeyboard(true));
+            });
+
+            client.on('error', (err) => {
+                session.active = false;
+                ctx.reply(`❌ فشل الاتصال: ${err.message}`);
+            });
+
+            client.on('disconnect', (p) => {
+                session.active = false;
+                ctx.reply(`⚠️ تم الطرد: ${p.reason}`);
+            });
+
+        } catch (e) {
+            ctx.reply('❌ خطأ في المحرك الرئيسي.');
+        }
     }
-
-    ctx.reply('⏳ جاري استدعاء محرك البيدروك الخاص بك...');
-    engine.createConnection(ctx.from.id, host, port, ctx);
 });
 
-// التعامل مع أوامر الخروج
-bot.command('stop', (ctx) => {
-    engine.destroyConnection(ctx.from.id);
-    ctx.reply('🛑 تم إيقاف جميع العمليات وإخراج البوت.');
+bot.action('check_status', (ctx) => {
+    const session = sessions.get(ctx.from.id);
+    if (!session) return ctx.answerCbQuery('لا توجد بيانات');
+    ctx.answerCbQuery(`الحالة: ${session.active ? 'متصل ✅' : 'غير متصل ❌'}`, { show_alert: true });
 });
 
-// نظام الحماية من الـ Conflict 409
-const startBot = async () => {
+// --- نظام الحماية الذاتي ---
+const launchApp = async () => {
     try {
         await bot.launch();
-        console.log('🚀 MaxBlack Ultra System Ready!');
+        console.log('🚀 TITAN SYSTEM READY');
     } catch (err) {
-        if (err.response && err.response.error_code === 409) {
-            console.log('🔄 تضارب في النسخ.. سأنتظر 15 ثانية ثم أعيد المحاولة.');
-            setTimeout(startBot, 15000);
-        } else {
-            console.error('❌ خطأ فادح:', err);
+        if (err.description?.includes('conflict')) {
+            console.log('🔄 تضارب! إعادة التشغيل التلقائي بعد 10 ثوانٍ...');
+            setTimeout(launchApp, 10000);
         }
     }
 };
 
-startBot();
+launchApp();
