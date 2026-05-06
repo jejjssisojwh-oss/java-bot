@@ -1,16 +1,18 @@
-{
-  "name": "max-black-bedrock-2026",
-  "version": "1.0.0",
-  "description": "Minecraft Bedrock Bot 2026",
-  "main": "index.js",
-  "dependencies": {
-    "telegraf": "^4.16.3",
-    "mineflayer": "latest",
-    "bedrock-protocol": "latest",
-    "http": "latest",
-    "fs": "latest"
-  },
-  "scripts": {
-    "start": "node index.js"
-  }
-}
+const mcBot = mineflayer.createBot({
+      host: s.host,
+      port: parseInt(s.port),
+      username: 'Max_Black_2026',
+      // إجبار البوت على استخدام الإصدار الذي طلبته
+      version: '1.26.13', 
+      auth: 'offline',
+      // تفعيل ميزة التخطي إذا كان الإصدار قريباً
+      checkTimeout: 30000,
+    });
+
+    // استخدام بروتوكول البيدروك للتواصل
+    const bedrock = require('bedrock-protocol');
+    
+    // محاولة الاتصال وتجاوز فحص الإصدار إذا لزم الأمر
+    mcBot.on('inject_allowed', () => {
+        console.log("🛠️ محاولة حقن بروتوكول البيدروك لإصدار 1.26.13");
+    });
