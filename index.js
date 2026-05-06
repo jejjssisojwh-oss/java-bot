@@ -1,115 +1,107 @@
 const { Telegraf, Markup } = require('telegraf');
 const bedrock = require('bedrock-protocol');
 const http = require('http');
-const EventEmitter = require('events');
 
-// --- إعدادات المحرك المركزي ---
 const bot = new Telegraf('8630184110:AAGN7k_-nZqOzEHZeNy74PuFR_CiJ2kxRps');
-const manager = new EventEmitter();
-const sessions = new Map();
 
-// إبقاء الاستضافة حية
-http.createServer((q, r) => r.end('TITAN SYSTEM ONLINE')).listen(process.env.PORT || 8080);
+// ويب سيرفر لإبقاء البوت حياً على ريلوي
+http.createServer((req, res) => res.end('MaxBlack Dashboard Online')).listen(process.env.PORT || 8080);
 
-// --- وظائف مساعدة ---
-const getKeyboard = (status) => Markup.inlineKeyboard([
-    [Markup.button.callback(status ? '🔴 إخراج البوت فوراً' : '🟢 تشغيل محرك الدخول', 'toggle_bot')],
-    [Markup.button.callback('🔍 فحص حالة السيرفر', 'check_status')],
-    [Markup.button.callback('🛠️ إعدادات متقدمة', 'settings')]
-]);
+const userSessions = new Map();
 
-// --- معالجة الأوامر ---
+// دالة لتوليد شكل الأزرار المرتب
+const mainKeyboard = (isConnected) => {
+    return Markup.inlineKeyboard([
+        [Markup.button.callback(isConnected ? '🔴 إخراج البوت' : '🟢 إدخال البوت للسيرفر', 'toggle_connect')],
+        [Markup.button.callback('📊 حالة الاتصال', 'check_status'), Markup.button.callback('🔄 تحديث', 'refresh')],
+        [Markup.button.callback('🗑️ مسح البيانات', 'reset_data')]
+    ]);
+};
+
 bot.start((ctx) => {
-    ctx.reply(`🛡️ نظام تيتان 2026 للبيدروك جاهز..
-    
-يا بطل، أرسل البيانات الآن بصيغة:
-` + '`HOST:PORT`' + `
-مثال: ` + '`play.net:19132`', { parse_mode: 'Markdown' });
+    ctx.reply(`🛡️ **أهلاً بك في لوحة تحكم MaxBlack**\n\nقم بإرسال بيانات السيرفر أولاً بصيغة:\n` + '`IP:PORT`', { parse_mode: 'Markdown' });
 });
 
 bot.on('text', (ctx) => {
     const input = ctx.message.text.trim();
-    if (!input.includes(':')) return ctx.reply('⚠️ الصيغة المطلوبة: IP:PORT');
+    if (!input.includes(':')) return ctx.reply('⚠️ الصيغة خاطئة يا بطل! أرسل `IP:PORT`');
 
-    const [host, port] = input.split(':');
-    const userId = ctx.from.id;
-
-    sessions.set(userId, { 
-        host: host.trim(), 
+    const [host, port] = input.split(':').map(s => s.trim());
+    userSessions.set(ctx.from.id, { 
+        host, 
         port: parseInt(port), 
-        client: null,
-        active: false 
+        client: null, 
+        status: 'مستعد للاتصال ⏳' 
     });
 
-    ctx.reply(`✅ تم تسجيل السيرفر: ${host}:${port}\nاختر الإجراء المطلوب من القائمة:`, getKeyboard(false));
+    ctx.reply(`✅ **تم حفظ بيانات السيرفر**\n🌐 العنوان: ${host}\n🔌 المنفذ: ${port}\n\nاختر من الأزرار أدناه:`, mainKeyboard(false));
 });
 
-// --- معالجة الأزرار التفاعلية ---
-bot.action('toggle_bot', async (ctx) => {
+bot.action('toggle_connect', async (ctx) => {
     const userId = ctx.from.id;
-    const session = sessions.get(userId);
+    const session = userSessions.get(userId);
 
     if (!session) return ctx.answerCbQuery('❌ أرسل البيانات أولاً!');
 
-    if (session.active) {
+    if (session.client) {
         // إخراج البوت
-        if (session.client) session.client.disconnect();
-        session.active = false;
+        session.client.disconnect();
         session.client = null;
-        ctx.editMessageText('🛑 تم فصل الاتصال وإخراج البوت.', getKeyboard(false));
+        session.status = 'تم الفصل 🛑';
+        await ctx.editMessageText(`🛑 **تم إخراج البوت من السيرفر**\nالحالة: ${session.status}`, mainKeyboard(false));
     } else {
         // إدخال البوت
         ctx.answerCbQuery('⏳ جاري المحاولة...');
+        session.status = 'جاري الاتصال... 🔄';
+        
         try {
             const client = bedrock.createClient({
                 host: session.host,
                 port: session.port,
-                username: `MaxTitan_${userId.toString().slice(0,4)}`,
+                username: 'MaxBlack_2026',
                 offline: true,
                 version: '1.20.10',
-                connectTimeout: 30000
+                connectTimeout: 20000
             });
 
             session.client = client;
-            
+
             client.on('spawn', () => {
-                session.active = true;
-                ctx.editMessageText(`🟢 مبروك يا بطل! البوت الآن داخل السيرفر.\n📍 ${session.host}:${session.port}`, getKeyboard(true));
+                session.status = 'متصل الآن ✅';
+                ctx.editMessageText(`🟢 **مبروك! البوت داخل السيرفر حالياً**\n📍 العنوان: ${session.host}:${session.port}\n📊 الحالة: ${session.status}`, mainKeyboard(true));
             });
 
             client.on('error', (err) => {
-                session.active = false;
+                session.status = `خطأ: ${err.message} ❌`;
+                session.client = null;
                 ctx.reply(`❌ فشل الاتصال: ${err.message}`);
             });
 
             client.on('disconnect', (p) => {
-                session.active = false;
-                ctx.reply(`⚠️ تم الطرد: ${p.reason}`);
+                session.status = 'مفصول ⚠️';
+                session.client = null;
+                ctx.reply(`⚠️ تم الانفصال: ${p.reason || 'تأكد من الإصدار'}`);
             });
 
         } catch (e) {
-            ctx.reply('❌ خطأ في المحرك الرئيسي.');
+            ctx.reply('❌ فشل تشغيل المحرك.');
         }
     }
 });
 
 bot.action('check_status', (ctx) => {
-    const session = sessions.get(ctx.from.id);
-    if (!session) return ctx.answerCbQuery('لا توجد بيانات');
-    ctx.answerCbQuery(`الحالة: ${session.active ? 'متصل ✅' : 'غير متصل ❌'}`, { show_alert: true });
+    const session = userSessions.get(ctx.from.id);
+    const status = session ? session.status : 'لا توجد بيانات 📭';
+    ctx.answerCbQuery(`🔍 الحالة الحالية: ${status}`, { show_alert: true });
 });
 
-// --- نظام الحماية الذاتي ---
-const launchApp = async () => {
-    try {
-        await bot.launch();
-        console.log('🚀 TITAN SYSTEM READY');
-    } catch (err) {
-        if (err.description?.includes('conflict')) {
-            console.log('🔄 تضارب! إعادة التشغيل التلقائي بعد 10 ثوانٍ...');
-            setTimeout(launchApp, 10000);
-        }
+bot.action('reset_data', (ctx) => {
+    const userId = ctx.from.id;
+    if (userSessions.has(userId)) {
+        if (userSessions.get(userId).client) userSessions.get(userId).client.disconnect();
+        userSessions.delete(userId);
     }
-};
+    ctx.editMessageText('🗑️ **تم مسح جميع البيانات بنجاح.**\nأرسل بيانات جديدة للبدء.');
+});
 
-launchApp();
+bot.launch().then(() => console.log('🚀 Dashboard System Ready!'));
