@@ -60,7 +60,7 @@ bot.action('toggle_connect', async (ctx) => {
                 port: session.port,
                 username: 'MaxBlack_2026',
                 offline: true,
-                version: '1.26.13.1',
+                version: '1.26.13',
                 connectTimeout: 20000
             });
 
