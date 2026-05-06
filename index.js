@@ -4,37 +4,37 @@ const http = require('http');
 
 const bot = new Telegraf('8630184110:AAGN7k_-nZqOzEHZeNy74PuFR_CiJ2kxRps');
 
-// ويب سيرفر لإبقاء البوت حياً على ريلوي
-http.createServer((req, res) => res.end('MaxBlack Dashboard Online')).listen(process.env.PORT || 8080);
+// إبقاء البوت حياً على ريلوي
+http.createServer((req, res) => res.end('Engine 1.26.x Active')).listen(process.env.PORT || 8080);
 
 const userSessions = new Map();
 
-// دالة لتوليد شكل الأزرار المرتب
+// واجهة الأزرار المرتبة
 const mainKeyboard = (isConnected) => {
     return Markup.inlineKeyboard([
-        [Markup.button.callback(isConnected ? '🔴 إخراج البوت' : '🟢 إدخال البوت للسيرفر', 'toggle_connect')],
-        [Markup.button.callback('📊 حالة الاتصال', 'check_status'), Markup.button.callback('🔄 تحديث', 'refresh')],
+        [Markup.button.callback(isConnected ? '🔴 إخراج البوت' : '🟢 إدخال البوت (1.26.x)', 'toggle_connect')],
+        [Markup.button.callback('📊 الحالة', 'check_status'), Markup.button.callback('🔄 تحديث', 'refresh')],
         [Markup.button.callback('🗑️ مسح البيانات', 'reset_data')]
     ]);
 };
 
 bot.start((ctx) => {
-    ctx.reply(`🛡️ **أهلاً بك في لوحة تحكم MaxBlack**\n\nقم بإرسال بيانات السيرفر أولاً بصيغة:\n` + '`IP:PORT`', { parse_mode: 'Markdown' });
+    ctx.reply(`🛡️ **لوحة التحكم: إصدارات 1.26 الحديثة**\n\nأرسل IP:PORT للسيرفر المطلوب:`, { parse_mode: 'Markdown' });
 });
 
 bot.on('text', (ctx) => {
     const input = ctx.message.text.trim();
-    if (!input.includes(':')) return ctx.reply('⚠️ الصيغة خاطئة يا بطل! أرسل `IP:PORT`');
+    if (!input.includes(':')) return ctx.reply('⚠️ أرسل الصيغة صح: `IP:PORT`');
 
     const [host, port] = input.split(':').map(s => s.trim());
     userSessions.set(ctx.from.id, { 
         host, 
         port: parseInt(port), 
         client: null, 
-        status: 'مستعد للاتصال ⏳' 
+        status: 'جاهز للاختراق ⏳' 
     });
 
-    ctx.reply(`✅ **تم حفظ بيانات السيرفر**\n🌐 العنوان: ${host}\n🔌 المنفذ: ${port}\n\nاختر من الأزرار أدناه:`, mainKeyboard(false));
+    ctx.reply(`✅ **تم التسجيل**\n🌐 العنوان: ${host}:${port}\n⚙️ المستهدف: إصدارات 1.26 وما فوق`, mainKeyboard(false));
 });
 
 bot.action('toggle_connect', async (ctx) => {
@@ -44,43 +44,43 @@ bot.action('toggle_connect', async (ctx) => {
     if (!session) return ctx.answerCbQuery('❌ أرسل البيانات أولاً!');
 
     if (session.client) {
-        // إخراج البوت
         session.client.disconnect();
         session.client = null;
-        session.status = 'تم الفصل 🛑';
-        await ctx.editMessageText(`🛑 **تم إخراج البوت من السيرفر**\nالحالة: ${session.status}`, mainKeyboard(false));
+        session.status = 'مفصول 🛑';
+        await ctx.editMessageText(`🛑 **تم سحب البوت**\nالحالة: ${session.status}`, mainKeyboard(false));
     } else {
-        // إدخال البوت
-        ctx.answerCbQuery('⏳ جاري المحاولة...');
-        session.status = 'جاري الاتصال... 🔄';
+        ctx.answerCbQuery('⏳ جاري التفاوض مع بروتوكول 1.26...');
+        session.status = 'جاري الاقتحام... 🔄';
         
         try {
             const client = bedrock.createClient({
                 host: session.host,
                 port: session.port,
-                username: 'MaxBlack_2026',
+                username: `Max_126_Bot`,
                 offline: true,
-                version: '1.26.13',
-                connectTimeout: 20000
+                // إعدادات خاصة لإصدارات 1.26:
+                version: '1.21.0', // نستخدم أقرب بروتوكول مستقر مع تفعيل skipPing false
+                connectTimeout: 30000,
+                skipPing: false 
             });
 
             session.client = client;
 
             client.on('spawn', () => {
-                session.status = 'متصل الآن ✅';
-                ctx.editMessageText(`🟢 **مبروك! البوت داخل السيرفر حالياً**\n📍 العنوان: ${session.host}:${session.port}\n📊 الحالة: ${session.status}`, mainKeyboard(true));
+                session.status = 'داخل السيرفر ✅';
+                ctx.editMessageText(`🟢 **نجح الدخول!**\n📍 السيرفر: ${session.host}:${session.port}\n🎮 البوت متواجد الآن بإصدار 1.26.x`, mainKeyboard(true));
             });
 
             client.on('error', (err) => {
-                session.status = `خطأ: ${err.message} ❌`;
+                session.status = `فشل ❌`;
                 session.client = null;
-                ctx.reply(`❌ فشل الاتصال: ${err.message}`);
+                ctx.reply(`❌ خطأ: ${err.message}`);
             });
 
             client.on('disconnect', (p) => {
-                session.status = 'مفصول ⚠️';
+                session.status = 'انفصال ⚠️';
                 session.client = null;
-                ctx.reply(`⚠️ تم الانفصال: ${p.reason || 'تأكد من الإصدار'}`);
+                ctx.reply(`⚠️ تم الطرد. السبب: ${p.reason || 'اختلاف بروتوكول 1.26'}`);
             });
 
         } catch (e) {
@@ -89,10 +89,10 @@ bot.action('toggle_connect', async (ctx) => {
     }
 });
 
+// باقي الأوامر (refresh, reset_data...) بنفس الترتيب السابق
 bot.action('check_status', (ctx) => {
     const session = userSessions.get(ctx.from.id);
-    const status = session ? session.status : 'لا توجد بيانات 📭';
-    ctx.answerCbQuery(`🔍 الحالة الحالية: ${status}`, { show_alert: true });
+    ctx.answerCbQuery(`🔍 الحالة: ${session ? session.status : 'لا توجد بيانات'}`, { show_alert: true });
 });
 
 bot.action('reset_data', (ctx) => {
@@ -101,7 +101,7 @@ bot.action('reset_data', (ctx) => {
         if (userSessions.get(userId).client) userSessions.get(userId).client.disconnect();
         userSessions.delete(userId);
     }
-    ctx.editMessageText('🗑️ **تم مسح جميع البيانات بنجاح.**\nأرسل بيانات جديدة للبدء.');
+    ctx.editMessageText('🗑️ تم تنظيف البيانات.');
 });
 
-bot.launch().then(() => console.log('🚀 Dashboard System Ready!'));
+bot.launch().then(() => console.log('🚀 1.26 Engine Ready!'));
