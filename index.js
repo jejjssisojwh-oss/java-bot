@@ -2,7 +2,7 @@ const { Telegraf, Markup } = require('telegraf');
 const bedrock = require('bedrock-protocol');
 const http = require('http');
 
-const bot = new Telegraf('8630184110:AAGN7k_-nZq0zEHZeNy74PuFR_CiJ2kxRps');
+const bot = new Telegraf('8630184110:AAGN7k_-nZqOzEHZeNy74PuFR_CiJ2kxRps');
 
 http.createServer((req, res) => res.end('Protocol 1.26.x Forced')).listen(process.env.PORT || 8080);
 
