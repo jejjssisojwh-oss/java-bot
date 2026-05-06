@@ -4,7 +4,7 @@ const http = require('http');
 const EventEmitter = require('events');
 
 // --- إعدادات المحرك المركزي ---
-const bot = new Telegraf('8630184110:AAGN7k_-nZq0zEHZeNy74PuFR_CiJ2kxRps');
+const bot = new Telegraf('8630184110:AAGN7k_-nZqOzEHZeNy74PuFR_CiJ2kxRps');
 const manager = new EventEmitter();
 const sessions = new Map();
 
