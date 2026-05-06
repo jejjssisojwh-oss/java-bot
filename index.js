@@ -3,7 +3,7 @@ const bedrock = require('bedrock-protocol');
 const http = require('http');
 
 // التوكن الخاص بك يا بطل
-const bot = new Telegraf('8630184110:AAGN7k_-nZq0zEHZeNy74PuFR_CiJ2kxRps');
+const bot = new Telegraf('8630184110:AAGN7k_-nZqOzEHZeNy74PuFR_CiJ2kxRps');
 
 // ويب سيرفر بسيط لإبقاء البوت حياً على ريلوي
 http.createServer((req, res) => res.end('Bedrock Engine 1.26.13.1 Active')).listen(process.env.PORT || 8080);
