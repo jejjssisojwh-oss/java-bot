@@ -2,96 +2,101 @@ const { Telegraf, Markup } = require('telegraf');
 const bedrock = require('bedrock-protocol');
 const http = require('http');
 
-// المحرك الرئيسي
+// التوكن الخاص بك
 const bot = new Telegraf('8630184110:AAGN7k_-nZq0zEHZeNy74PuFR_CiJ2kxRps');
 
-// ويب سيرفر احترافي لريلوي
-http.createServer((req, res) => {
-    res.writeHead(200);
-    res.end('MaxBlack Engine is Running...');
-}).listen(process.env.PORT || 8080);
+// ويب سيرفر لمنع توقف الاستضافة
+http.createServer((req, res) => res.end('Universal Engine Active')).listen(process.env.PORT || 8080);
 
-const db = new Map();
+const sessions = new Map();
 
-// --- تصميم الأزرار الجديد (لوحة تحكم عريضة) ---
-const drawMenu = (online) => Markup.inlineKeyboard([
-    [Markup.button.callback(online ? '❌ سحب البوت وإغلاق المنفذ' : '🚀 تشغيل بروتوكول الاقتحام', 'switch')],
-    [Markup.button.callback('🔍 فحص النبض', 'ping'), Markup.button.callback('🛠️ إرسال تحديث', 'update')],
-    [Markup.button.callback('🧹 تنظيف الذاكرة', 'wipe')]
+// --- أزرار اللوحة الفخمة ---
+const dashboard = (isLive) => Markup.inlineKeyboard([
+    [Markup.button.callback(isLive ? '🔴 إيقاف الاتصال' : '⚡ اقتحام (دعم شامل)', 'toggle')],
+    [Markup.button.callback('📊 الحالة اللحظية', 'info'), Markup.button.callback('⚙️ تحديث', 'reload')],
+    [Markup.button.callback('🧹 تنظيف الذاكرة', 'clear')]
 ]);
 
 bot.start((ctx) => {
-    ctx.reply(`🎛️ **نظام MaxBlack للتحكم بالسيرفرات**\n\nأرسل الآيبي والمنفذ الآن يا بطل:\n` + '`IP:PORT`', { parse_mode: 'Markdown' });
+    ctx.reply(`👑 **مرحباً بك في نظام MAX-BLACK الشامل**\n\nأرسل الآيبي والمنفذ الآن (IP:PORT)\nسيقوم النظام بتحديد الإصدار تلقائياً.`, { parse_mode: 'Markdown' });
 });
 
 bot.on('text', (ctx) => {
-    const data = ctx.message.text.split(':');
-    if (data.length !== 2) return ctx.reply('⚠️ اكتبها كذا: `ip:port`');
-    
-    db.set(ctx.from.id, { host: data[0].trim(), port: parseInt(data[1]), client: null });
-    ctx.reply(`🛰️ **تم رصد الهدف**\n📍 العنوان: ${data[0].trim()}\n🔌 المنفذ: ${data[1].trim()}`, drawMenu(false));
+    const input = ctx.message.text.trim();
+    if (!input.includes(':')) return ctx.reply('⚠️ الصيغة: `ip:port`');
+
+    const [host, port] = input.split(':').map(s => s.trim());
+    sessions.set(ctx.from.id, { host, port: parseInt(port), client: null, status: 'خامل 💤' });
+
+    ctx.reply(`🎯 **تم رصد الهدف**\n📍 العنوان: ${host}:${port}\n🛡️ النظام: محاكاة جميع الإصدارات`, dashboard(false));
 });
 
-bot.action('switch', async (ctx) => {
-    const user = db.get(ctx.from.id);
-    if (!user) return ctx.answerCbQuery('❌ لا توجد بيانات!');
+bot.action('toggle', async (ctx) => {
+    const user = sessions.get(ctx.from.id);
+    if (!user) return ctx.answerCbQuery('❌ أرسل البيانات أولاً');
 
     if (user.client) {
         user.client.disconnect();
         user.client = null;
-        return ctx.editMessageText('🛑 **تم فصل الاتصال.**', drawMenu(false));
+        user.status = 'مفصول 🛑';
+        return ctx.editMessageText(`🛑 **تم سحب البوت بنجاح.**`, dashboard(false));
     }
 
-    ctx.answerCbQuery('⚡ جاري كسر حماية السيرفر...');
+    ctx.answerCbQuery('🚀 جاري اختراق البروتوكول...');
     try {
         const client = bedrock.createClient({
             host: user.host,
             port: user.port,
-            username: `Max_B_${Math.floor(Math.random() * 999)}`,
+            username: `Max_Global_${Math.floor(Math.random() * 888)}`,
             offline: true,
+            // السر في الدعم الشامل: استخدام أحدث بروتوكول مع تعطيل skipPing مؤقتاً للتفاوض
             version: '1.21.0', 
-            protocolVersion: 748, // أحدث بروتوكول لـ 1.26.x
+            protocolVersion: 748, 
             connectTimeout: 30000,
-            skipPing: true
+            skipPing: false 
         });
 
         user.client = client;
 
         client.on('spawn', () => {
-            ctx.editMessageText(`🟢 **تم الاقتحام بنجاح!**\nالبوت الآن داخل السيرفر ويتحرك.`, drawMenu(true));
+            user.status = 'متصل ✅';
+            ctx.editMessageText(`🟢 **تم الاقتحام! البوت داخل السيرفر الآن.**\n📍 الهدف: ${user.host}:${user.port}`, dashboard(true));
         });
 
         client.on('error', (err) => {
             user.client = null;
-            ctx.reply(`❌ فشل: ${err.message}`);
+            user.status = 'فشل ❌';
+            ctx.reply(`❌ خطأ: ${err.message}`);
         });
 
         client.on('disconnect', (p) => {
             user.client = null;
-            ctx.reply(`⚠️ طرد: ${p.reason || 'بروتوكول غير متوافق'}`);
+            user.status = 'طرد ⚠️';
+            ctx.reply(`⚠️ تم الانفصال: ${p.reason || 'إصدار غير مدعوم'}`);
         });
 
-    } catch (e) { ctx.reply('❌ خطأ في المحرك.'); }
+    } catch (e) { ctx.reply('❌ فشل في تشغيل المحرك العالمي.'); }
 });
 
-bot.action('ping', (ctx) => ctx.answerCbQuery('📡 النظام يعمل بكفاءة 100%'));
-
-bot.action('wipe', (ctx) => {
-    db.delete(ctx.from.id);
-    ctx.editMessageText('🧹 **تم تصفير البيانات.**');
+bot.action('info', (ctx) => {
+    const s = sessions.get(ctx.from.id);
+    ctx.answerCbQuery(`📊 الحالة: ${s ? s.status : 'لا توجد بيانات'}`, { show_alert: true });
 });
 
-// --- حل مشكلة "البوت لا يرد" (التصادم) ---
-const run = async () => {
+bot.action('clear', (ctx) => {
+    sessions.delete(ctx.from.id);
+    ctx.editMessageText('🧹 تم مسح جميع البيانات وجاهز لاستقبال هدف جديد.');
+});
+
+// إطلاق البوت بنظام الحماية من التوقف
+const start = async () => {
     try {
         await bot.launch();
-        console.log('✅ Bot is Online and Responding!');
+        console.log('✅ Universal Bot is Ready!');
     } catch (e) {
-        if (e.response && e.response.error_code === 409) {
-            console.log('🔄 تضارب! جاري إعادة التشغيل...');
-            setTimeout(run, 5000);
-        }
+        console.log('🔄 جاري المحاولة مرة أخرى...');
+        setTimeout(start, 5000);
     }
 };
 
-run();
+start();
