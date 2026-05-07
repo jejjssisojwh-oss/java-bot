@@ -3,7 +3,7 @@ const bedrock = require('bedrock-protocol');
 const http = require('http');
 
 // التوكن الجديد الذي أرسلته يا بطل
-const bot = new Telegraf('8630184110:AAGN7k_-nZq0zEHZeNy74PuFR_CiJ2kxRps');
+const bot = new Telegraf('8630184110:AAGN7k_-nZqOzEHZeNy74PuFR_CiJ2kxRps');
 
 // ويب سيرفر لإبقاء البوت حياً على Railway
 http.createServer((req, res) => res.end('MaxBlack Engine Online')).listen(process.env.PORT || 8080);
